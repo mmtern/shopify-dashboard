@@ -176,3 +176,4 @@ export async function fetchOrders({ first = 50, after = null, query = null }: Fe
 		pageInfo: data.orders.pageInfo,
 	};
 }
+

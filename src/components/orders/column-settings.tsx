@@ -81,7 +81,7 @@ function SortableItem({
       >
         <GripVertical className="h-4 w-4" />
       </button>
-      
+
       <div className="flex-1">
         <Input
           value={customName}
@@ -129,14 +129,14 @@ export function ColumnSettings<TData>({ table }: ColumnSettingsProps<TData>) {
       const newIndex = columns.findIndex((col) => col.id === over.id)
 
       const newOrder = arrayMove(columns, oldIndex, newIndex).map((c) => c.id)
-      
+
       table.setColumnOrder(newOrder)
     }
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger 
+      <DialogTrigger
         render={
           <Button variant="outline" size="sm" className="h-9 gap-2">
             <Settings2 className="h-4 w-4" />
@@ -151,7 +151,7 @@ export function ColumnSettings<TData>({ table }: ColumnSettingsProps<TData>) {
             {t.columnSettingsDesc}
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="pt-4 pb-0">
           <DndContext
             sensors={sensors}
@@ -168,14 +168,12 @@ export function ColumnSettings<TData>({ table }: ColumnSettingsProps<TData>) {
                     order_number: t.order,
                     created_at: t.date,
                     customer_name: t.customer,
-                    financial_status: t.payment,
-                    fulfillment_status: t.fulfillment,
                     shipping_method: t.shipping,
-                    total_price: t.total,
+                    file_staff: 'File',
+                    print_staff: 'Print',
                     production_status: t.stage,
-                    tags: t.tags
                   }
-                  
+
                   const defaultName = DEFAULT_NAMES[column.id] || column.id.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
                   const name = customNames[column.id] || defaultName
 
@@ -195,11 +193,11 @@ export function ColumnSettings<TData>({ table }: ColumnSettingsProps<TData>) {
               </div>
             </SortableContext>
           </DndContext>
-          
+
           <div className="mt-4 pt-4 border-t flex justify-end items-center">
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => {
                 if (meta?.resetPreferences) {
                   meta.resetPreferences()

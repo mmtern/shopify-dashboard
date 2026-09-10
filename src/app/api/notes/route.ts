@@ -1,42 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server'
-
-// In-memory store for mock notes
-const notesStore: Record<string, Array<{
-  id: string
-  order_id: string
-  staff_id: string
-  content: string
-  created_at: string
-  updated_at: string
-  staff?: { username: string; display_name: string | null }
-}>> = {}
+import { createClient } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { orderId, content, staffId, staffUsername } = body
+    const { orderId, content } = body
 
     if (!orderId || !content) {
       return NextResponse.json({ error: 'orderId and content are required' }, { status: 400 })
     }
 
-    const note = {
-      id: crypto.randomUUID(),
-      order_id: orderId,
-      staff_id: staffId || 'mock-staff-1',
-      content,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      staff: {
-        username: staffUsername || 'staff',
-        display_name: staffUsername || 'Staff',
-      },
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    if (!notesStore[orderId]) {
-      notesStore[orderId] = []
-    }
-    notesStore[orderId].push(note)
+    const { data: note, error: insertError } = await supabase
+      .from('internal_notes')
+      .insert({
+        order_id: orderId,
+        staff_id: user.id,
+        content: content,
+      })
+      .select(`
+        *,
+        staff (
+          username,
+          display_name
+        )
+      `)
+      .single()
+
+    if (insertError) throw insertError
 
     return NextResponse.json({ success: true, note })
   } catch (error) {
@@ -47,10 +44,26 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const { noteId, orderId } = await request.json()
-    if (notesStore[orderId]) {
-      notesStore[orderId] = notesStore[orderId].filter(n => n.id !== noteId)
+    const { noteId } = await request.json()
+    
+    if (!noteId) {
+       return NextResponse.json({ error: 'noteId is required' }, { status: 400 })
     }
+
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { error: deleteError } = await supabase
+      .from('internal_notes')
+      .delete()
+      .eq('id', noteId)
+
+    if (deleteError) throw deleteError
+
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Delete note error:', error)

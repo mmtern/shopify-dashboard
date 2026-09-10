@@ -148,7 +148,7 @@ create index if not exists idx_line_items_sku on public.line_items (sku);
 
 create table public.production_status (
   id uuid default gen_random_uuid() primary key,
-  order_id text references public.orders(id) on delete cascade not null,
+  order_id text not null,
   stage text default 'new_order' not null,
   stage_updated_at timestamp with time zone default timezone('utc'::text, now()),
   assigned_staff_id uuid references public.staff(id) on delete set null,
@@ -185,7 +185,7 @@ create index if not exists idx_production_status_assigned_staff on public.produc
 
 create table if not exists public.internal_notes (
   id          uuid primary key default gen_random_uuid(),
-  order_id    text not null references public.orders(id) on delete cascade,
+  order_id    text not null,
   staff_id    uuid not null references public.staff(id) on delete cascade,
   content     text not null,
   created_at  timestamptz not null default now(),
@@ -234,7 +234,7 @@ create index if not exists idx_internal_notes_staff_id on public.internal_notes 
 
 create table if not exists public.status_history (
   id            uuid primary key default gen_random_uuid(),
-  order_id      text not null references public.orders(id) on delete cascade,
+  order_id      text not null,
   staff_id      uuid not null references public.staff(id) on delete cascade,
   status_field  text not null,
   old_value     text not null,

@@ -18,9 +18,11 @@ import { useTranslation } from '@/components/i18n-provider'
 interface OrderDetailsProps {
   order: OrderWithDetails
   staffList: Staff[]
+  username: string
+  onStageChange?: (orderId: string, stageKey: string, staffName: string) => void
 }
 
-export function OrderDetails({ order, staffList }: OrderDetailsProps) {
+export function OrderDetails({ order, staffList, username, onStageChange }: OrderDetailsProps) {
   const { t } = useTranslation()
 
   return (
@@ -46,16 +48,18 @@ export function OrderDetails({ order, staffList }: OrderDetailsProps) {
             {t.internalNotes}
           </TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="production" className="pt-4 space-y-6 outline-none">
           <Card className="p-4 border-border/50 bg-card/50 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-medium">{t.productionStatus}</h3>
             </div>
-            <StatusSelector 
-              orderId={order.id} 
+            <StatusSelector
+              orderId={order.id}
               currentStage={order.production_status?.stage || 'new_order'}
               staffId={order.production_status?.assigned_staff_id || undefined}
+              username={username}
+              onStageChange={onStageChange}
             />
           </Card>
           <Card className="p-4 border-border/50 bg-card/50 shadow-sm">
@@ -63,7 +67,7 @@ export function OrderDetails({ order, staffList }: OrderDetailsProps) {
             <StatusHistory history={order.status_history || []} />
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="items" className="pt-4 space-y-4 outline-none">
           {order.line_items?.map((item) => (
             <Card key={item.id} className="p-4 border-border/50 bg-card/50 shadow-sm overflow-hidden">
@@ -90,11 +94,11 @@ export function OrderDetails({ order, staffList }: OrderDetailsProps) {
                     </div>
                     <div className="text-right text-sm">
                       <div className="font-medium">
-                        {item.quantity} × ${item.discounted_price || item.unit_price}
+                        ×{item.quantity}
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="pt-2 mt-2 border-t border-border/50">
                     <LineItemAttributes attributes={item.custom_attributes} />
                   </div>
@@ -103,7 +107,7 @@ export function OrderDetails({ order, staffList }: OrderDetailsProps) {
             </Card>
           ))}
         </TabsContent>
-        
+
         <TabsContent value="notes" className="pt-4 outline-none">
           <Card className="p-0 border-border/50 bg-card/50 shadow-sm overflow-hidden">
             <InternalNotes orderId={order.id} notes={order.internal_notes || []} />
