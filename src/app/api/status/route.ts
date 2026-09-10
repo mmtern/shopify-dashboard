@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 // In-memory store for mock status updates (will be replaced with Supabase)
-const statusUpdates: Record<string, Record<string, { value: boolean; timestamp: string }>> = {}
+const statusUpdates: Record<string, Record<string, { value: boolean | string; timestamp: string }>> = {}
 
 export async function POST(request: NextRequest) {
   try {

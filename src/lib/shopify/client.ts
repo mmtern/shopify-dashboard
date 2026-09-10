@@ -1,6 +1,6 @@
 // src/lib/shopify/client.ts
 
-const SHOPIFY_STORE_URL = process.env.SHOPIFY_STORE_URL || "";
+const SHOPIFY_STORE = process.env.SHOPIFY_STORE || "";
 const SHOPIFY_CLIENT_ID = process.env.SHOPIFY_CLIENT_ID || "";
 const SHOPIFY_CLIENT_SECRET = process.env.SHOPIFY_CLIENT_SECRET || "";
 const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN || "";
@@ -8,6 +8,9 @@ const API_VERSION = "2026-07";
 
 // Re-fetch this far before the token actually expires, so one can't lapse mid-request.
 const TOKEN_REFRESH_MARGIN_MS = 60_000;
+// Used when Shopify omits expires_in, so a missing value can't produce a NaN
+// deadline that silently disables the cache.
+const DEFAULT_TOKEN_TTL_S = 86_400;
 
 interface ShopifyGraphQLResponse<T> {
 	data: T;
@@ -31,9 +34,9 @@ let cachedToken: { token: string; expiresAt: number } | null = null;
 let pendingToken: Promise<string> | null = null;
 
 async function requestAccessToken(): Promise<string> {
-	const response = await fetch(`https://${SHOPIFY_STORE_URL}/admin/oauth/access_token`, {
+	const response = await fetch(`https://${SHOPIFY_STORE}/admin/oauth/access_token`, {
 		method: "POST",
-		headers: { "Content-Type": "application/x-www-form-urlencoded" },
+		headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
 		body: new URLSearchParams({
 			grant_type: "client_credentials",
 			client_id: SHOPIFY_CLIENT_ID,
@@ -41,15 +44,31 @@ async function requestAccessToken(): Promise<string> {
 		}),
 	});
 
-	const data = await response.json().catch(() => null);
+	// Shopify answers this endpoint with an HTML error page unless Accept asks for
+	// JSON, and even then some failures aren't JSON — so read text and try to parse.
+	const raw = await response.text();
+	let data: { access_token?: string; expires_in?: number; error?: string; error_description?: string } | null = null;
+	try {
+		data = JSON.parse(raw);
+	} catch {
+		data = null;
+	}
 
 	if (!response.ok || !data?.access_token) {
-		throw new Error(`Shopify token request failed: ${response.status} ${JSON.stringify(data)}`);
+		// app_not_installed is by far the most common cause and the message alone
+		// doesn't say what to do about it.
+		if (data?.error === "app_not_installed") {
+			throw new Error(
+				`Shopify app is not installed on ${SHOPIFY_STORE}. Install it from the Shopify Dev Dashboard (your app → Overview → Install), then retry.`,
+			);
+		}
+		const detail = data ? JSON.stringify(data) : raw.slice(0, 200);
+		throw new Error(`Shopify token request failed: ${response.status} ${detail}`);
 	}
 
 	cachedToken = {
 		token: data.access_token,
-		expiresAt: Date.now() + data.expires_in * 1000,
+		expiresAt: Date.now() + (data.expires_in ?? DEFAULT_TOKEN_TTL_S) * 1000,
 	};
 
 	return cachedToken.token;
@@ -80,8 +99,8 @@ export async function shopifyGraphQL<T>(
 	query: string,
 	variables?: Record<string, unknown>,
 ): Promise<ShopifyGraphQLResponse<T>> {
-	if (!SHOPIFY_STORE_URL) {
-		throw new Error("Shopify credentials not configured: SHOPIFY_STORE_URL is missing.");
+	if (!SHOPIFY_STORE) {
+		throw new Error("Shopify credentials not configured: SHOPIFY_STORE is missing.");
 	}
 
 	if (!SHOPIFY_ACCESS_TOKEN && !(SHOPIFY_CLIENT_ID && SHOPIFY_CLIENT_SECRET)) {
@@ -92,7 +111,7 @@ export async function shopifyGraphQL<T>(
 
 	const accessToken = await getAccessToken();
 
-	const response = await fetch(`https://${SHOPIFY_STORE_URL}/admin/api/${API_VERSION}/graphql.json`, {
+	const response = await fetch(`https://${SHOPIFY_STORE}/admin/api/${API_VERSION}/graphql.json`, {
 		method: "POST",
 		headers: {
 			"Content-Type": "application/json",

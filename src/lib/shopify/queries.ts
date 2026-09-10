@@ -11,20 +11,26 @@ export const ORDERS_QUERY = `
           createdAt
           displayFinancialStatus
           displayFulfillmentStatus
-          customer {
-            id
+          # Order-level email/phone and the address names cover everything the
+          # dashboard shows, and unlike \`customer\` they don't need read_customers.
+          email
+          phone
+          shippingAddress {
             firstName
             lastName
-            email
-            phone
-          }
-          shippingAddress {
+            name
             address1
             address2
             city
             province
             country
             zip
+            phone
+          }
+          # Digital-only orders have no shippingAddress at all, so billing is the
+          # fallback for the customer's name and phone.
+          billingAddress {
+            name
             phone
           }
           shippingLines(first: 5) {
