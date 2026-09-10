@@ -1,3 +1,5 @@
+// src/lib/shopify/queries.ts
+
 export const ORDERS_QUERY = `
   query FetchOrders($first: Int!, $after: String, $query: String) {
     orders(first: $first, after: $after, query: $query, sortKey: CREATED_AT, reverse: true) {
@@ -67,4 +69,29 @@ export const ORDERS_QUERY = `
       }
     }
   }
-`
+`;
+
+export const SHOP_QUERY = `
+  query FetchShop {
+    shop {
+      id
+      name
+      email
+      contactEmail
+      myshopifyDomain
+      url
+      primaryDomain { url host sslEnabled }
+      currencyCode
+      currencyFormats { moneyFormat moneyWithCurrencyFormat }
+      ianaTimezone
+      timezoneAbbreviation
+      weightUnit
+      unitSystem
+      taxesIncluded
+      createdAt
+      plan { displayName shopifyPlus partnerDevelopment }
+      shipsToCountries
+      enabledPresentmentCurrencies
+    }
+  }
+`;
