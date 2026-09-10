@@ -61,7 +61,7 @@ export function StatusCheckboxes({ orderId, status }: StatusCheckboxesProps) {
       {PRODUCTION_STATUSES.map((stage) => {
         const isChecked = !!localStatus[stage.key as keyof ProductionStatus]
         const timestampStr = localStatus[`\${stage.key}_at` as keyof ProductionStatus] as string | undefined
-        const isProblem = stage.key === 'problem_hold'
+        const isProblem = (stage.key as string) === 'problem_hold'
         
         return (
           <div 
