@@ -36,6 +36,7 @@ interface OrdersTableProps {
   pageInfo: { hasNextPage: boolean; endCursor: string | null }
   currentPage: number
   username: string
+  searchQuery?: string
   initialStageStaff?: Record<string, Record<string, string>>
 }
 
@@ -59,7 +60,7 @@ function setCursorHistory(history: string[]) {
   sessionStorage.setItem(CURSOR_HISTORY_KEY, JSON.stringify(history))
 }
 
-export function OrdersTable({ data, staffList, pageInfo, currentPage, username, initialStageStaff = {} }: OrdersTableProps) {
+export function OrdersTable({ data, staffList, pageInfo, currentPage, username, searchQuery = '', initialStageStaff = {} }: OrdersTableProps) {
   const { t } = useTranslation()
   const router = useRouter()
   const [sorting, setSorting] = React.useState<SortingState>([])
@@ -137,7 +138,8 @@ export function OrdersTable({ data, staffList, pageInfo, currentPage, username, 
     const currentCursor = new URLSearchParams(window.location.search).get('cursor') || ''
     history.push(currentCursor)
     setCursorHistory(history)
-    router.push(`/?cursor=${encodeURIComponent(pageInfo.endCursor)}&page=${currentPage + 1}`)
+    const qParam = searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''
+    router.push(`/?cursor=${encodeURIComponent(pageInfo.endCursor)}&page=${currentPage + 1}${qParam}`)
   }
 
   const handlePreviousPage = () => {
@@ -145,16 +147,20 @@ export function OrdersTable({ data, staffList, pageInfo, currentPage, username, 
     const history = getCursorHistory()
     const previousCursor = history.pop()
     setCursorHistory(history)
+    const qParam = searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''
     if (!previousCursor) {
       // Going back to page 1
-      router.push('/')
+      router.push(`/?page=1${qParam}`)
     } else {
-      router.push(`/?cursor=${encodeURIComponent(previousCursor)}&page=${currentPage - 1}`)
+      router.push(`/?cursor=${encodeURIComponent(previousCursor)}&page=${currentPage - 1}${qParam}`)
     }
   }
 
+  // Use data directly — server already applies any search query via Shopify API
+  const filteredData = data
+
   const table = useReactTable({
-    data,
+    data: filteredData,
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -193,13 +199,23 @@ export function OrdersTable({ data, staffList, pageInfo, currentPage, username, 
     }
   })
 
+  const handleSearch = React.useCallback((query: string) => {
+    if (query) {
+      router.push(`/?q=${encodeURIComponent(query)}&page=1`)
+    } else {
+      router.push(`/?page=1`)
+    }
+  }, [router])
+
   return (
     <div className="space-y-4">
-      <TableToolbar table={table} onSync={async () => {
-        router.refresh()
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        toast.success((t as any).notifications?.syncedOrders || 'Synced Orders')
-      }} />
+      <div className="flex items-center justify-end gap-4">
+        <TableToolbar table={table} initialSearch={searchQuery} onSearch={handleSearch} onSync={async () => {
+          router.refresh()
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          toast.success((t as any).notifications?.syncedOrders || 'Synced Orders')
+        }} />
+      </div>
       <div className="rounded-md border border-border bg-card overflow-hidden">
         <div className="overflow-x-auto">
           <Table style={{ tableLayout: 'fixed', width: table.getTotalSize(), minWidth: '100%' }}>

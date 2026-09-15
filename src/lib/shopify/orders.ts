@@ -164,6 +164,8 @@ export function mapOrder(node: ShopifyOrderNode, syncedAt: string): OrderWithDet
 		production_status: null,
 		internal_notes: [],
 		status_history: [],
+		production_job: null,
+		order_files: [],
 	};
 }
 

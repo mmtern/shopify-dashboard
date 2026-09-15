@@ -9,7 +9,7 @@ import type { OrderWithDetails } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 interface DashboardPageProps {
-	searchParams: Promise<{ cursor?: string; page?: string }>;
+	searchParams: Promise<{ cursor?: string; page?: string; q?: string }>;
 }
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
@@ -33,8 +33,14 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         const { data: staffData } = await supabase.from('staff').select('*').order('display_name');
         staffList = staffData || [];
 
-        // Fetch Shopify orders
-		const result = await fetchOrders({ first: 50, after: cursor });
+
+		// Fetch Shopify orders (no query filter — show all orders)
+		const searchQuery = params.q || null;
+		const result = await fetchOrders({ 
+			first: 50, 
+			after: searchQuery ? null : cursor,
+			query: searchQuery
+		});
 		orders = result.orders;
 		pageInfo = result.pageInfo;
 
@@ -61,11 +67,34 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 .in('order_id', orderIds)
                 .order('changed_at', { ascending: true }); // ASC so latest overwrites earlier
             
+            // Fetch active production jobs
+            const { data: jobs } = await supabase
+                .from('production_jobs')
+                .select('*, staff:preparation_started_by(username, display_name)')
+                .in('order_id', orderIds)
+                .eq('is_active', true);
+
+            // Fetch order files for active jobs
+            let orderFiles: any[] = [];
+            if (jobs && jobs.length > 0) {
+                const jobIds = jobs.map(j => j.id);
+                const { data: files } = await supabase
+                    .from('order_files')
+                    .select('*')
+                    .in('production_job_id', jobIds)
+                    .eq('is_active', true);
+                orderFiles = files || [];
+            }
+            
             // Map Supabase data to orders
             for (const order of orders) {
                 order.production_status = statuses?.find(s => s.order_id === order.id) || null;
                 order.internal_notes = notes?.filter(n => n.order_id === order.id) || [];
                 order.status_history = history?.filter(h => h.order_id === order.id) || [];
+                order.production_job = jobs?.find(j => j.order_id === order.id) || null;
+                order.order_files = order.production_job 
+                    ? orderFiles.filter(f => f.production_job_id === order.production_job?.id) 
+                    : [];
 
                 // Compute stageStaff from history
                 stageStaff[order.id] = {};
@@ -107,6 +136,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 					pageInfo={pageInfo}
 					currentPage={currentPage}
 					username={username}
+					searchQuery={params.q || ''}
 					initialStageStaff={stageStaff}
 				/>
 			)}
