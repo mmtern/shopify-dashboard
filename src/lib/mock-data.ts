@@ -176,6 +176,8 @@ export function getMockOrders(): OrderWithDetails[] {
       production_status: makeProductionStatus(makeId('ord', 1)),
       internal_notes: [],
       status_history: [],
+      production_job: null,
+      order_files: [],
     },
 
     // ── Order #1002 ──────────────────────────────────────────────────────
@@ -224,6 +226,8 @@ export function getMockOrders(): OrderWithDetails[] {
       production_status: makeProductionStatus(makeId('ord', 2)),
       internal_notes: [],
       status_history: [],
+      production_job: null,
+      order_files: [],
     },
 
     // ── Order #1003 ──────────────────────────────────────────────────────
@@ -271,6 +275,8 @@ export function getMockOrders(): OrderWithDetails[] {
       production_status: makeProductionStatus(makeId('ord', 3)),
       internal_notes: [],
       status_history: [],
+      production_job: null,
+      order_files: [],
     },
 
     // ── Order #1004 ──────────────────────────────────────────────────────
@@ -319,6 +325,8 @@ export function getMockOrders(): OrderWithDetails[] {
       production_status: makeProductionStatus(makeId('ord', 4)),
       internal_notes: [],
       status_history: [],
+      production_job: null,
+      order_files: [],
     },
 
     // ── Order #1005 ──────────────────────────────────────────────────────
@@ -366,6 +374,8 @@ export function getMockOrders(): OrderWithDetails[] {
       production_status: makeProductionStatus(makeId('ord', 5)),
       internal_notes: [],
       status_history: [],
+      production_job: null,
+      order_files: [],
     },
 
     // ── Order #1006 ──────────────────────────────────────────────────────
@@ -406,6 +416,8 @@ export function getMockOrders(): OrderWithDetails[] {
       }),
       internal_notes: [],
       status_history: [],
+      production_job: null,
+      order_files: [],
     },
 
     // ── Order #1007 ──────────────────────────────────────────────────────
@@ -458,6 +470,8 @@ export function getMockOrders(): OrderWithDetails[] {
       }),
       internal_notes: [],
       status_history: [],
+      production_job: null,
+      order_files: [],
     },
 
     // ── Order #1008 ──────────────────────────────────────────────────────
@@ -515,6 +529,8 @@ export function getMockOrders(): OrderWithDetails[] {
       production_status: makeProductionStatus(makeId('ord', 8)),
       internal_notes: [],
       status_history: [],
+      production_job: null,
+      order_files: [],
     },
 
     // ── Order #1009 ──────────────────────────────────────────────────────
@@ -557,6 +573,8 @@ export function getMockOrders(): OrderWithDetails[] {
       }),
       internal_notes: [],
       status_history: [],
+      production_job: null,
+      order_files: [],
     },
 
     // ── Order #1010 ──────────────────────────────────────────────────────
@@ -594,6 +612,8 @@ export function getMockOrders(): OrderWithDetails[] {
       production_status: makeProductionStatus(makeId('ord', 10)),
       internal_notes: [],
       status_history: [],
+      production_job: null,
+      order_files: [],
     },
   ];
 

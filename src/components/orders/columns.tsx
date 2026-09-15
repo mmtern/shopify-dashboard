@@ -5,6 +5,7 @@ import { format } from 'date-fns'
 import { Badge } from '@/components/ui/badge'
 import { Package, Truck, User } from 'lucide-react'
 import { OrderWithDetails, PRODUCTION_STATUSES } from '@/lib/types'
+import { getShippingStyle, isPickupOrder } from '@/lib/production/shipping'
 
 export const columns: ColumnDef<OrderWithDetails>[] = [
   {
@@ -60,61 +61,7 @@ export const columns: ColumnDef<OrderWithDetails>[] = [
     },
     cell: ({ row }) => {
       const method = (row.getValue('shipping_method') as string) || ''
-      const upper = method.toUpperCase()
-
-      type ShippingStyle = { label: string; icon: React.ReactNode; bg: string; text: string; border: string; dot: string }
-
-      const styles: Record<string, ShippingStyle> = {
-        PICKUP: {
-          label: 'Pickup',
-          icon: <Package className="h-3.5 w-3.5 shrink-0" />,
-          bg: 'bg-slate-500/10',
-          text: 'text-slate-400',
-          border: 'border-slate-500/20',
-          dot: 'bg-slate-400',
-        },
-        STANDARD: {
-          label: 'Standard',
-          icon: <Truck className="h-3.5 w-3.5 shrink-0" />,
-          bg: 'bg-sky-500/10',
-          text: 'text-sky-400',
-          border: 'border-sky-500/20',
-          dot: 'bg-sky-400',
-        },
-        RUSH: {
-          label: 'Rush',
-          icon: <Truck className="h-3.5 w-3.5 shrink-0" />,
-          bg: 'bg-amber-500/10',
-          text: 'text-amber-400',
-          border: 'border-amber-500/20',
-          dot: 'bg-amber-400',
-        },
-        NEXTDAY: {
-          label: 'Next-Day',
-          icon: <Truck className="h-3.5 w-3.5 shrink-0" />,
-          bg: 'bg-rose-500/10',
-          text: 'text-rose-400',
-          border: 'border-rose-500/20',
-          dot: 'bg-rose-400',
-        },
-        SATURDAY: {
-          label: 'Saturday',
-          icon: <Truck className="h-3.5 w-3.5 shrink-0" />,
-          bg: 'bg-violet-500/10',
-          text: 'text-violet-400',
-          border: 'border-violet-500/20',
-          dot: 'bg-violet-400',
-        },
-      }
-
-      const matchKey = upper.includes('PICKUP') || upper.includes('SHOP') ? 'PICKUP'
-        : upper.includes('NEXT') ? 'NEXTDAY'
-        : upper.includes('RUSH') ? 'RUSH'
-        : upper.includes('SATURDAY') ? 'SATURDAY'
-        : upper.includes('STANDARD') ? 'STANDARD'
-        : null
-
-      const style = matchKey ? styles[matchKey] : null
+      const style = getShippingStyle(method)
 
       if (!style) {
         return (
@@ -125,13 +72,15 @@ export const columns: ColumnDef<OrderWithDetails>[] = [
         )
       }
 
+      const Icon = style.iconKey === 'package' ? Package : Truck
+
       return (
         <Badge
           variant="outline"
           className={`flex items-center gap-1.5 w-fit text-xs ${style.bg} ${style.text} ${style.border} hover:${style.bg}`}
         >
           <div className={`w-2 h-2 rounded-full shrink-0 ${style.dot}`} />
-          {style.icon}
+          <Icon className="h-3.5 w-3.5 shrink-0" />
           <span className="truncate">{style.label}</span>
         </Badge>
       )
@@ -139,25 +88,47 @@ export const columns: ColumnDef<OrderWithDetails>[] = [
   },
   {
     id: 'file_staff',
-    size: 120,
+    size: 140,
     header: ({ table, column }) => {
-      return (table.options.meta as any)?.columnNames?.[column.id] || 'File'
+      const t = (table.options.meta as any)?.t
+      return (table.options.meta as any)?.columnNames?.[column.id] || t?.files || 'Files'
     },
-    cell: ({ row, table }) => {
-      const stageStaff = (table.options.meta as any)?.stageStaff || {}
-      const orderId = row.original.id
-      const staffName = stageStaff[orderId]?.ready_for_print || null
-
-      if (!staffName) {
+    cell: ({ row }) => {
+      const job = row.original.production_job
+      const files = row.original.order_files || []
+      
+      if (!job) {
         return <span className="text-muted-foreground text-xs">—</span>
       }
 
-      return (
-        <div className="flex items-center gap-1.5">
-          <User className="h-3 w-3 shrink-0 text-violet-400" />
-          <span className="text-sm truncate">{staffName}</span>
-        </div>
-      )
+      const activeFiles = files.filter(f => f.is_active)
+      const isPickup = isPickupOrder(row.original.shipping_method)
+      
+      const designFiles = activeFiles.filter(f => f.file_type === 'design')
+      const labelFiles = activeFiles.filter(f => f.file_type === 'shipping_label')
+      
+      let isReady = job.status === 'ready'
+      const isPreparing = job.status === 'preparing'
+
+      if (isReady) {
+        return (
+          <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 whitespace-nowrap">
+            Files Ready
+          </Badge>
+        )
+      } else if (activeFiles.length > 0) {
+        return (
+          <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20 whitespace-nowrap">
+            {activeFiles.length} File{activeFiles.length === 1 ? '' : 's'}
+          </Badge>
+        )
+      } else {
+        return (
+          <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/20 whitespace-nowrap">
+            Preparing
+          </Badge>
+        )
+      }
     },
   },
   {

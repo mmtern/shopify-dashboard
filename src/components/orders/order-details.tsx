@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { OrderWithDetails, Staff } from '@/lib/types'
 import { StatusSelector } from './status-selector'
 import { InternalNotes } from './internal-notes'
+import { FilesTab } from './files-tab'
 import { StatusHistory } from './status-history'
 import { LineItemAttributes } from './line-item-attributes'
 import { MapPin, User, Mail, Phone, Hash, Image as ImageIcon } from 'lucide-react'
@@ -40,6 +41,12 @@ export function OrderDetails({ order, staffList, username, onStageChange }: Orde
             className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-2"
           >
             {t.lineItems} ({order.line_items?.length || 0})
+          </TabsTrigger>
+          <TabsTrigger
+            value="files"
+            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-2"
+          >
+            {t.files || 'Files'}
           </TabsTrigger>
           <TabsTrigger
             value="notes"
@@ -106,6 +113,10 @@ export function OrderDetails({ order, staffList, username, onStageChange }: Orde
               </div>
             </Card>
           ))}
+        </TabsContent>
+
+        <TabsContent value="files" className="pt-4 outline-none">
+          <FilesTab order={order} username={username} />
         </TabsContent>
 
         <TabsContent value="notes" className="pt-4 outline-none">
