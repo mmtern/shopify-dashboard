@@ -1,6 +1,0 @@
-{
-  "code": "PGRST205",
-  "details": null,
-  "hint": null,
-  "message": "Could not find the table 'public.production_status' in the schema cache"
-}
