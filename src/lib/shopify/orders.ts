@@ -164,6 +164,8 @@ export function mapOrder(node: ShopifyOrderNode, syncedAt: string): OrderWithDet
 		production_status: null,
 		internal_notes: [],
 		status_history: [],
+		production_job: null,
+		order_files: [],
 	};
 }
 
@@ -176,3 +178,4 @@ export async function fetchOrders({ first = 50, after = null, query = null }: Fe
 		pageInfo: data.orders.pageInfo,
 	};
 }
+

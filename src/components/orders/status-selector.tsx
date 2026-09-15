@@ -9,9 +9,11 @@ interface StatusSelectorProps {
   orderId: string
   currentStage: string
   staffId?: string
+  username?: string
+  onStageChange?: (orderId: string, stageKey: string, staffName: string) => void
 }
 
-export function StatusSelector({ orderId, currentStage, staffId }: StatusSelectorProps): React.JSX.Element {
+export function StatusSelector({ orderId, currentStage, staffId, username, onStageChange }: StatusSelectorProps): React.JSX.Element {
   const { t } = useTranslation()
   const [activeStage, setActiveStage] = useState<string>(currentStage || 'new_order')
   const [isUpdating, setIsUpdating] = useState<string | null>(null)
@@ -36,6 +38,10 @@ export function StatusSelector({ orderId, currentStage, staffId }: StatusSelecto
       if (!res.ok) throw new Error('Failed to update status')
 
       setActiveStage(stageKey)
+      // Record who triggered this stage
+      if (onStageChange && username) {
+        onStageChange(orderId, stageKey, username)
+      }
       const stageName = t.status[stageKey as keyof typeof t.status] || stageKey
       toast.success(stageName + ' ' + ((t as any).notifications?.statusUpdated || 'stage activated'))
     } catch (error) {

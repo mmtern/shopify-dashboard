@@ -98,12 +98,57 @@ export interface StatusHistoryEntry {
 	staff?: Staff;
 }
 
+// Production file management types
+export type FileType = 'design' | 'shipping_label' | 'other';
+export type UploadStatus = 'pending' | 'uploading' | 'completed' | 'failed';
+
+export interface ProductionJob {
+	id: string;
+	order_id: string;
+	production_date: string | null;
+	queue_number: number | null;
+	include_sample: boolean;
+	is_active: boolean;
+	status: 'preparing' | 'ready';
+	preparation_started_by: string | null;
+	preparation_started_at: string | null;
+	completed_by: string | null;
+	completed_at: string | null;
+	created_at: string;
+	updated_at: string;
+	staff?: Pick<Staff, 'username' | 'display_name'> | null;
+}
+
+export interface OrderFile {
+	id: string;
+	order_id: string;
+	production_job_id: string;
+	file_type: FileType;
+	original_filename: string | null;
+	generated_filename: string | null;
+	design_length_inches: number | null;
+	file_sequence: number | null;
+	storage_provider: string | null;
+	storage_key: string | null;
+	mime_type: string | null;
+	file_size_bytes: number | null;
+	upload_status: UploadStatus;
+	uploaded_by: string | null;
+	created_at: string;
+	updated_at: string;
+	completed_at: string | null;
+	version: number;
+	is_active: boolean;
+}
+
 // Combined order with all relations
 export interface OrderWithDetails extends Order {
 	line_items: LineItem[];
 	production_status: ProductionStatus | null;
 	internal_notes: InternalNote[];
 	status_history: StatusHistoryEntry[];
+	production_job: ProductionJob | null;
+	order_files: OrderFile[];
 }
 
 // Production status field names (for iteration)

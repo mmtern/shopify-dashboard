@@ -3,8 +3,9 @@
 import { ColumnDef } from '@tanstack/react-table'
 import { format } from 'date-fns'
 import { Badge } from '@/components/ui/badge'
-import { Package, Truck } from 'lucide-react'
+import { Package, Truck, User } from 'lucide-react'
 import { OrderWithDetails, PRODUCTION_STATUSES } from '@/lib/types'
+import { getShippingStyle, isPickupOrder } from '@/lib/production/shipping'
 
 export const columns: ColumnDef<OrderWithDetails>[] = [
   {
@@ -52,79 +53,105 @@ export const columns: ColumnDef<OrderWithDetails>[] = [
     },
   },
   {
-    accessorKey: 'financial_status',
-    size: 130,
-    header: ({ table, column }) => {
-      const t = (table.options.meta as any)?.t
-      return (table.options.meta as any)?.columnNames?.[column.id] || t?.payment || 'Payment'
-    },
-    cell: ({ row, table }) => {
-      const status = row.getValue('financial_status') as string
-      const t = (table.options.meta as any)?.t
-      const translatedStatus = t?.financial?.[status] || status || t?.financial?.PENDING || 'PENDING'
-      return (
-        <Badge variant={status === 'PAID' ? 'default' : 'secondary'} className={status === 'PAID' ? 'bg-green-600/10 text-green-600 hover:bg-green-600/20 border-green-600/20' : ''}>
-          {translatedStatus}
-        </Badge>
-      )
-    },
-  },
-  {
-    accessorKey: 'fulfillment_status',
-    size: 150,
-    header: ({ table, column }) => {
-      const t = (table.options.meta as any)?.t
-      return (table.options.meta as any)?.columnNames?.[column.id] || t?.fulfillment || 'Fulfillment'
-    },
-    cell: ({ row, table }) => {
-      const status = row.getValue('fulfillment_status') as string
-      const t = (table.options.meta as any)?.t
-      const translatedStatus = t?.fulfillmentStatus?.[status] || status || t?.fulfillmentStatus?.UNFULFILLED || 'UNFULFILLED'
-      return (
-        <Badge variant={status === 'FULFILLED' ? 'default' : 'outline'} className={status === 'FULFILLED' ? 'bg-blue-600/10 text-blue-600 hover:bg-blue-600/20 border-blue-600/20' : ''}>
-          {translatedStatus}
-        </Badge>
-      )
-    },
-  },
-  {
     accessorKey: 'shipping_method',
     size: 180,
     header: ({ table, column }) => {
       const t = (table.options.meta as any)?.t
       return (table.options.meta as any)?.columnNames?.[column.id] || t?.shipping || 'Shipping'
     },
-    cell: ({ row, table }) => {
-      const method = row.getValue('shipping_method') as string
-      const t = (table.options.meta as any)?.t
-      
-      let translatedMethod = method || t?.shippingMethod?.Standard || 'Standard'
-      if (method?.includes('Express')) translatedMethod = t?.shippingMethod?.Express || 'Express'
-      if (method?.includes('Pickup')) translatedMethod = t?.shippingMethod?.Pickup || 'Pickup'
-      if (method?.includes('Standard')) translatedMethod = t?.shippingMethod?.Standard || 'Standard'
+    cell: ({ row }) => {
+      const method = (row.getValue('shipping_method') as string) || ''
+      const style = getShippingStyle(method)
+
+      if (!style) {
+        return (
+          <Badge variant="outline" className="flex items-center gap-1.5 w-fit text-xs">
+            <Truck className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <span className="truncate">{method || 'Unknown'}</span>
+          </Badge>
+        )
+      }
+
+      const Icon = style.iconKey === 'package' ? Package : Truck
 
       return (
-        <div className="flex items-center gap-2 text-sm truncate pr-4">
-          {method?.includes('Pickup') ? <Package className="h-4 w-4 shrink-0 text-muted-foreground" /> : <Truck className="h-4 w-4 shrink-0 text-muted-foreground" />}
-          <span className="truncate">{translatedMethod}</span>
-        </div>
+        <Badge
+          variant="outline"
+          className={`flex items-center gap-1.5 w-fit text-xs ${style.bg} ${style.text} ${style.border} hover:${style.bg}`}
+        >
+          <div className={`w-2 h-2 rounded-full shrink-0 ${style.dot}`} />
+          <Icon className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate">{style.label}</span>
+        </Badge>
       )
     },
   },
   {
-    accessorKey: 'total_price',
-    size: 100,
+    id: 'file_staff',
+    size: 140,
     header: ({ table, column }) => {
       const t = (table.options.meta as any)?.t
-      return (table.options.meta as any)?.columnNames?.[column.id] || t?.total || 'Total'
+      return (table.options.meta as any)?.columnNames?.[column.id] || t?.files || 'Files'
     },
     cell: ({ row }) => {
-      const amount = parseFloat(row.getValue('total_price'))
-      const formatted = new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: row.original.currency || 'USD',
-      }).format(amount)
-      return <div className="font-medium">{formatted}</div>
+      const job = row.original.production_job
+      const files = row.original.order_files || []
+      
+      if (!job) {
+        return <span className="text-muted-foreground text-xs">—</span>
+      }
+
+      const activeFiles = files.filter(f => f.is_active)
+      const isPickup = isPickupOrder(row.original.shipping_method)
+      
+      const designFiles = activeFiles.filter(f => f.file_type === 'design')
+      const labelFiles = activeFiles.filter(f => f.file_type === 'shipping_label')
+      
+      let isReady = job.status === 'ready'
+      const isPreparing = job.status === 'preparing'
+
+      if (isReady) {
+        return (
+          <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 whitespace-nowrap">
+            Files Ready
+          </Badge>
+        )
+      } else if (activeFiles.length > 0) {
+        return (
+          <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20 whitespace-nowrap">
+            {activeFiles.length} File{activeFiles.length === 1 ? '' : 's'}
+          </Badge>
+        )
+      } else {
+        return (
+          <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/20 whitespace-nowrap">
+            Preparing
+          </Badge>
+        )
+      }
+    },
+  },
+  {
+    id: 'print_staff',
+    size: 120,
+    header: ({ table, column }) => {
+      return (table.options.meta as any)?.columnNames?.[column.id] || 'Print'
+    },
+    cell: ({ row, table }) => {
+      const stageStaff = (table.options.meta as any)?.stageStaff || {}
+      const orderId = row.original.id
+      const staffName = stageStaff[orderId]?.printing || null
+
+      if (!staffName) {
+        return <span className="text-muted-foreground text-xs">—</span>
+      }
+
+      return (
+        <div className="flex items-center gap-1.5">
+          <User className="h-3 w-3 shrink-0 text-indigo-400" />
+          <span className="text-sm truncate">{staffName}</span>
+        </div>
+      )
     },
   },
   {
@@ -158,19 +185,5 @@ export const columns: ColumnDef<OrderWithDetails>[] = [
       )
     },
   },
-  {
-    accessorKey: 'tags',
-    size: 120,
-    header: ({ table, column }) => {
-      const t = (table.options.meta as any)?.t
-      return (table.options.meta as any)?.columnNames?.[column.id] || t?.tags || 'Tags'
-    },
-    filterFn: (row, id, filterValue) => {
-      const tags = row.getValue(id) as string[]
-      if (!tags) return false
-      return tags.some(tag => tag.toLowerCase().includes(filterValue.toLowerCase()))
-    },
-    cell: () => null,
-    enableHiding: true,
-  },
 ]
+

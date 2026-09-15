@@ -1,23 +1,110 @@
-import { getMockStaff } from "@/lib/mock-data";
 import { fetchOrders } from "@/lib/shopify/orders";
 import { OrdersTable } from "@/components/orders/orders-table";
 import { Badge } from "@/components/ui/badge";
 import { getDictionary } from "@/lib/i18n/server";
+import { createClient } from "@/lib/supabase/server";
 import type { OrderWithDetails } from "@/lib/types";
 
 // Orders change constantly; never serve a build-time snapshot.
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
-	// Staff is dashboard-owned and still unimplemented, so it stays mocked.
-	const staff = getMockStaff();
+interface DashboardPageProps {
+	searchParams: Promise<{ cursor?: string; page?: string; q?: string }>;
+}
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
 	const t = await getDictionary();
+	const supabase = await createClient();
+	const { data: { user } } = await supabase.auth.getUser();
+	const username = (user?.user_metadata?.username as string) || user?.email?.split('@')[0] || 'User';
+	const params = await searchParams;
+
+	const cursor = params.cursor ?? null;
+	const currentPage = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
 
 	let orders: OrderWithDetails[] = [];
+	let pageInfo = { hasNextPage: false, endCursor: null as string | null };
 	let error: string | null = null;
+	let stageStaff: Record<string, Record<string, string>> = {};
+	let staffList: any[] = [];
 
 	try {
-		({ orders } = await fetchOrders({ first: 50 }));
+        // Fetch staff from Supabase
+        const { data: staffData } = await supabase.from('staff').select('*').order('display_name');
+        staffList = staffData || [];
+
+
+		// Fetch Shopify orders (no query filter — show all orders)
+		const searchQuery = params.q || null;
+		const result = await fetchOrders({ 
+			first: 50, 
+			after: searchQuery ? null : cursor,
+			query: searchQuery
+		});
+		orders = result.orders;
+		pageInfo = result.pageInfo;
+
+        const orderIds = orders.map(o => o.id);
+
+        if (orderIds.length > 0) {
+            // Fetch production statuses
+            const { data: statuses } = await supabase
+                .from('production_status')
+                .select('*')
+                .in('order_id', orderIds);
+
+            // Fetch internal notes with staff details
+            const { data: notes } = await supabase
+                .from('internal_notes')
+                .select('*, staff (username, display_name)')
+                .in('order_id', orderIds)
+                .order('created_at', { ascending: false });
+
+            // Fetch status history with staff details
+            const { data: history } = await supabase
+                .from('status_history')
+                .select('*, staff (username, display_name)')
+                .in('order_id', orderIds)
+                .order('changed_at', { ascending: true }); // ASC so latest overwrites earlier
+            
+            // Fetch active production jobs
+            const { data: jobs } = await supabase
+                .from('production_jobs')
+                .select('*, staff:preparation_started_by(username, display_name)')
+                .in('order_id', orderIds)
+                .eq('is_active', true);
+
+            // Fetch order files for active jobs
+            let orderFiles: any[] = [];
+            if (jobs && jobs.length > 0) {
+                const jobIds = jobs.map(j => j.id);
+                const { data: files } = await supabase
+                    .from('order_files')
+                    .select('*')
+                    .in('production_job_id', jobIds)
+                    .eq('is_active', true);
+                orderFiles = files || [];
+            }
+            
+            // Map Supabase data to orders
+            for (const order of orders) {
+                order.production_status = statuses?.find(s => s.order_id === order.id) || null;
+                order.internal_notes = notes?.filter(n => n.order_id === order.id) || [];
+                order.status_history = history?.filter(h => h.order_id === order.id) || [];
+                order.production_job = jobs?.find(j => j.order_id === order.id) || null;
+                order.order_files = order.production_job 
+                    ? orderFiles.filter(f => f.production_job_id === order.production_job?.id) 
+                    : [];
+
+                // Compute stageStaff from history
+                stageStaff[order.id] = {};
+                for (const entry of order.status_history) {
+                    if (entry.status_field === 'stage') {
+                         stageStaff[order.id][entry.new_value] = entry.staff?.display_name || entry.staff?.username || 'User';
+                    }
+                }
+            }
+        }
 	} catch (e) {
 		error = e instanceof Error ? e.message : String(e);
 		console.error("Dashboard orders fetch failed:", e);
@@ -43,7 +130,15 @@ export default async function DashboardPage() {
 					<p className='text-sm text-muted-foreground wrap-break-word'>{error}</p>
 				</div>
 			) : (
-				<OrdersTable data={orders} staffList={staff} />
+				<OrdersTable
+					data={orders}
+					staffList={staffList}
+					pageInfo={pageInfo}
+					currentPage={currentPage}
+					username={username}
+					searchQuery={params.q || ''}
+					initialStageStaff={stageStaff}
+				/>
 			)}
 		</div>
 	);
